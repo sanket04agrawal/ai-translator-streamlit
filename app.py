@@ -6,16 +6,17 @@ from gtts import gTTS
 import tempfile
 import os
 
-# ---------- PAGE CONFIG ----------
+# ---------- PAGE CONFIG (Mobile friendly) ----------
 st.set_page_config(
-    page_title="AI Image & Text Translator",
-    layout="centered"
+    page_title="AI Translator",
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
 
-st.title("🌍 AI Image & Text Translator")
-st.write("Translate text or images into your language with voice output")
+st.title("🌍 AI Translator")
+st.caption("Text / Image → Translate → Speak")
 
-# ---------- LANGUAGE OPTIONS ----------
+# ---------- LANGUAGES ----------
 languages = {
     "English": "en",
     "Hindi": "hi",
@@ -28,40 +29,54 @@ languages = {
     "German": "de"
 }
 
-# ---------- INPUT TYPE ----------
-mode = st.radio("Choose Input Type", ["Text", "Image"])
+# ---------- INPUT MODE ----------
+mode = st.radio(
+    "Input Type",
+    ["Text", "Image"],
+    horizontal=True
+)
 
 text = ""
 
 # ---------- TEXT INPUT ----------
 if mode == "Text":
-    text = st.text_area("Enter text to translate", height=150)
+    text = st.text_area(
+        "Enter text to translate",
+        height=180,
+        placeholder="Type here…"
+    )
 
 # ---------- IMAGE INPUT ----------
 else:
     image = st.file_uploader(
-        "Upload an image (PNG / JPG)",
+        "Upload image",
         type=["png", "jpg", "jpeg"]
     )
 
     if image:
         img = Image.open(image)
-        st.image(img, caption="Uploaded Image", use_container_width=True)
-
-        # OCR
+        st.image(img, use_container_width=True)
         text = pytesseract.image_to_string(img)
 
-# ---------- PROCESS ----------
-if text.strip():
-    st.subheader("📄 Extracted / Input Text")
-    st.write(text)
+# ---------- TARGET LANGUAGE ----------
+target_lang = st.selectbox(
+    "Translate to",
+    list(languages.keys())
+)
 
-    target_lang = st.selectbox(
-        "Translate to",
-        list(languages.keys())
-    )
+# ---------- BUTTONS (IMPORTANT PART) ----------
+col1, col2 = st.columns(2)
 
-    # Translation
+translated_text = ""
+
+with col1:
+    translate_clicked = st.button("🔄 Translate", use_container_width=True)
+
+with col2:
+    speak_clicked = st.button("🔊 Speak", use_container_width=True)
+
+# ---------- TRANSLATION ----------
+if translate_clicked and text.strip():
     translated_text = GoogleTranslator(
         source="auto",
         target=languages[target_lang]
@@ -70,18 +85,22 @@ if text.strip():
     st.subheader("✅ Translated Text")
     st.write(translated_text)
 
-    # ---------- TEXT TO SPEECH ----------
-    if st.button("🔊 Speak Translation"):
-        tts = gTTS(
-            translated_text,
-            lang=languages[target_lang]
-        )
+# ---------- SPEECH ----------
+if speak_clicked and text.strip():
+    if not translated_text:
+        translated_text = GoogleTranslator(
+            source="auto",
+            target=languages[target_lang]
+        ).translate(text)
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-            tts.save(fp.name)
-            st.audio(fp.name)
-            os.remove(fp.name)
+    tts = gTTS(translated_text, lang=languages[target_lang])
 
-else:
-    st.info("👆 Enter text or upload an image to start translating.")
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+        tts.save(fp.name)
+        st.audio(fp.name)
+        os.remove(fp.name)
+
+if not text.strip():
+    st.info("👆 Enter text or upload an image")
+
 
